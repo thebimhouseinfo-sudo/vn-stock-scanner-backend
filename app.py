@@ -17,12 +17,14 @@ from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
-# Try to import vnstocks, if not available provide mock
-from vnstocks import Vnstock
+# SỬA LỖI TÊN THƯ VIỆN: vnstock (không có s)
+try:
+    from vnstock import listing_companies, financial_ratio, stock_historical_data
+except ImportError:
+    print("Vnstock library not found. Please check requirements.txt")
 
 app = FastAPI(title="VN Stock Scanner API", version="1.0")
 
-# Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -108,30 +110,48 @@ def save_cache(data: Dict):
 # 1. FETCH STOCK DATA FROM VNSTOCKS
 # ========================================
 
-# In app.py, replace fetch_all_stocks():
-
-# In app.py, replace fetch_all_stocks():
-
 def fetch_all_stocks() -> List[Stock]:
-    stock = Vnstock()
-    listings = stock.listing.get_listings()
-    
-    stocks = []
-    for ticker in listings['ticker'][:400]:
-        try:
-            fundamental = stock.fundamental.get_fundamental(ticker)
-            price = stock.price.get_price(ticker)
-            
-            stocks.append(Stock(
-                ticker=ticker,
-                price=price['close'],
-                market_cap=fundamental['marketCap'],
-                # ... etc
-            ))
-        except:
-            continue
-    
-    return stocks
+    try:
+        # Lấy danh sách niêm yết
+        df_listing = listing_companies()
+        # Giới hạn 20 mã để tránh Render timeout (Bản Free chỉ cho phép chạy nhanh)
+        tickers = df_listing['ticker'].head(20).tolist()
+        
+        stocks_list = []
+        for ticker in tickers:
+            try:
+                # Lấy chỉ số tài chính năm gần nhất
+                df_ratio = financial_ratio(ticker, 'yearly', 'latest')
+                if df_ratio.empty: continue
+                
+                # Lấy dữ liệu giá 10 ngày gần nhất
+                df_price = stock_historical_data(ticker, (datetime.now() - timedelta(days=20)).strftime('%Y-%m-%d'), datetime.now().strftime('%Y-%m-%d'), "1D")
+                if df_price.empty: continue
+                
+                ratio = df_ratio.iloc[0]
+                price_latest = df_price.iloc[-1]
+                avg_vol = df_price['volume'].tail(10).mean()
+
+                stocks_list.append(Stock(
+                    ticker=ticker,
+                    price=float(price_latest['close']),
+                    market_cap=float(ratio.get('marketCap', 0)),
+                    pe=float(ratio.get('priceToEarning', 15)),
+                    pb=float(ratio.get('priceToBook', 1)),
+                    roe=float(ratio.get('roe', 0)) * 100,
+                    revenue_growth=float(ratio.get('revenueChange', 0)) * 100,
+                    eps_growth=float(ratio.get('epsChange', 0)) * 100,
+                    debt=float(ratio.get('debtToEquity', 0)) * 100,
+                    fcf=0.0, net_income=0.0, sector="General",
+                    volume_10d_avg=float(avg_vol),
+                    return_1m=0.0, return_3m=0.0, return_6m=0.0, return_12m=0.0
+                ))
+            except:
+                continue
+        return stocks_list
+    except Exception as e:
+        print(f"Error fetching: {e}")
+        return []
 
 # ========================================
 # 2. STAGE 1: PRE-FILTER BY VOLUME
