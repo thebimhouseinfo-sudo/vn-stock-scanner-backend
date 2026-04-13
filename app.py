@@ -18,10 +18,7 @@ import json
 from pathlib import Path
 
 # Try to import vnstocks, if not available provide mock
-try:
-    from vnstocks import Vnstock
-except ImportError:
-    Vnstock = None
+from vnstocks import Vnstock
 
 app = FastAPI(title="VN Stock Scanner API", version="1.0")
 
@@ -113,41 +110,28 @@ def save_cache(data: Dict):
 
 # In app.py, replace fetch_all_stocks():
 
+# In app.py, replace fetch_all_stocks():
+
 def fetch_all_stocks() -> List[Stock]:
-    try:
-        stock = Vnstock()
-        # Get all stocks
-        listings = stock.listing.get_listings()
-        
-        stocks = []
-        for ticker in listings['ticker'][:400]:  # First 400
-            try:
-                # Get fundamental data
-                fundamental = stock.fundamental.get_fundamental(ticker)
-                
-                # Get price data
-                price = stock.price.get_price(ticker)
-                
-                # Get volume data (10D average)
-                volume = stock.price.get_volume(ticker)
-                
-                stock_obj = Stock(
-                    ticker=ticker,
-                    price=price['close'],
-                    market_cap=fundamental['marketCap'],
-                    pe=fundamental['pe'],
-                    pb=fundamental['pb'],
-                    roe=fundamental['roe'],
-                    # ... populate all fields
-                )
-                stocks.append(stock_obj)
-            except:
-                continue
-        
-        return stocks
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
+    stock = Vnstock()
+    listings = stock.listing.get_listings()
+    
+    stocks = []
+    for ticker in listings['ticker'][:400]:
+        try:
+            fundamental = stock.fundamental.get_fundamental(ticker)
+            price = stock.price.get_price(ticker)
+            
+            stocks.append(Stock(
+                ticker=ticker,
+                price=price['close'],
+                market_cap=fundamental['marketCap'],
+                # ... etc
+            ))
+        except:
+            continue
+    
+    return stocks
 
 # ========================================
 # 2. STAGE 1: PRE-FILTER BY VOLUME
