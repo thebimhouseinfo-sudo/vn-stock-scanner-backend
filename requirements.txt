@@ -1,10 +1,18 @@
+# Build Tools
 setuptools
 wheel
-requests
+
+# Web & Server
 fastapi==0.109.0
 uvicorn==0.27.0
-vnstock==0.2.1
-pandas
 python-dotenv
 pydantic
+requests
+
+# Data Science & Finance (Cần thiết cho logic 5 lớp)
+vnstock==0.2.1
+pandas
+numpy
+
+# Utilities
 apscheduler
