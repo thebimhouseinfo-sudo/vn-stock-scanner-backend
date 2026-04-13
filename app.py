@@ -111,76 +111,43 @@ def save_cache(data: Dict):
 # 1. FETCH STOCK DATA FROM VNSTOCKS
 # ========================================
 
+# In app.py, replace fetch_all_stocks():
+
 def fetch_all_stocks() -> List[Stock]:
-    """
-    Fetch stock data from VNStocks API
-    For demo: return mock data
-    In production: integrate with vnstocks library
-    """
-    
-    # Mock data (replace with real API calls)
-    mock_stocks = [
-        Stock(
-            ticker="VNM",
-            price=87500,
-            market_cap=739920000000,
-            pe=27.5,
-            pb=6.2,
-            roe=22.5,
-            revenue_growth=12.3,
-            eps_growth=15.2,
-            debt=35,
-            fcf=2500,
-            net_income=3200,
-            sector="Food & Beverage",
-            volume_10d_avg=1250000,  # > 50k ✓
-            return_1m=5.2,
-            return_3m=-2.1,
-            return_6m=8.5,
-            return_12m=15.3
-        ),
-        Stock(
-            ticker="VIC",
-            price=95000,
-            market_cap=1250000000000,
-            pe=8.5,
-            pb=1.2,
-            roe=28.5,
-            revenue_growth=18.5,
-            eps_growth=22.5,
-            debt=42,
-            fcf=5600,
-            net_income=7200,
-            sector="Diversified",
-            volume_10d_avg=890000,  # > 50k ✓
-            return_1m=3.2,
-            return_3m=5.5,
-            return_6m=12.3,
-            return_12m=25.5
-        ),
-        Stock(
-            ticker="MWG",
-            price=58000,
-            market_cap=285600000000,
-            pe=12.5,
-            pb=2.1,
-            roe=18.5,
-            revenue_growth=15.2,
-            eps_growth=18.5,
-            debt=28,
-            fcf=1200,
-            net_income=1850,
-            sector="Retail",
-            volume_10d_avg=750000,  # > 50k ✓
-            return_1m=8.5,
-            return_3m=12.5,
-            return_6m=18.5,
-            return_12m=35.2
-        ),
-        # Add more stocks...
-    ]
-    
-    return mock_stocks
+    try:
+        stock = Vnstock()
+        # Get all stocks
+        listings = stock.listing.get_listings()
+        
+        stocks = []
+        for ticker in listings['ticker'][:400]:  # First 400
+            try:
+                # Get fundamental data
+                fundamental = stock.fundamental.get_fundamental(ticker)
+                
+                # Get price data
+                price = stock.price.get_price(ticker)
+                
+                # Get volume data (10D average)
+                volume = stock.price.get_volume(ticker)
+                
+                stock_obj = Stock(
+                    ticker=ticker,
+                    price=price['close'],
+                    market_cap=fundamental['marketCap'],
+                    pe=fundamental['pe'],
+                    pb=fundamental['pb'],
+                    roe=fundamental['roe'],
+                    # ... populate all fields
+                )
+                stocks.append(stock_obj)
+            except:
+                continue
+        
+        return stocks
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
 
 # ========================================
 # 2. STAGE 1: PRE-FILTER BY VOLUME
